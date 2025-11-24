@@ -54,7 +54,7 @@ CONFIG_SCHEMA = (
                 icon=ICON_CHEMICAL_WEAPON,
             ),
             cv.Optional(CONF_TEMPERATURE_OFFSET): cv.maybe_simple_value(
-                number._NUMBER_SCHEMA.extend(
+                number.number_schema(TemperatureOffsetClassId).extend(
                     {
                         cv.GenerateID(): cv.declare_id(TemperatureOffsetClassId),
                         cv.Optional(CONF_INITIAL_VALUE, default=0.0): cv.float_range(-10, 10),
