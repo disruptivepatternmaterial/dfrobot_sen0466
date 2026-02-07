@@ -133,7 +133,10 @@ namespace esphome {
 
       if (temp_ADC == 0 || temp_ADC >= 1023)
       {
-        ESP_LOGW(TAG, "read_temperature_C invalid temp_ADC %u", temp_ADC);
+        if (skip_checksum_)
+          ESP_LOGD(TAG, "read_temperature_C invalid temp_ADC %u", temp_ADC);
+        else
+          ESP_LOGW(TAG, "read_temperature_C invalid temp_ADC %u", temp_ADC);
         return NAN;
       }
 
