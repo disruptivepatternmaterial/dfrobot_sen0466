@@ -20,6 +20,7 @@ namespace esphome {
 
     class Sen0466Sensor : public sensor::Sensor, public PollingComponent, public i2c::I2CDevice {
       public:
+        void setup() override;
         void update() override;
         void dump_config() override;
 
@@ -33,6 +34,7 @@ namespace esphome {
         sProtocol_t pack_output_buffer(uint8_t*, uint8_t);
         uint8_t calculate_data_checksum(uint8_t* i,uint8_t ln);
         void call_sensor(uint8_t command, uint8_t* result);
+        bool set_acquire_mode(uint8_t mode);
 
         sensor::Sensor *temperature_sensor_{nullptr};
         sensor::Sensor *carbon_monoxide_sensor_{nullptr};

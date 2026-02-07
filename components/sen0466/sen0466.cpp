@@ -8,9 +8,31 @@ namespace esphome {
 
     static const char *const TAG = "sen0466_sensor.sensor";
 
-    // void Sen0466Sensor::setup() {
-    // 	ESP_LOGCONFIG(TAG, "Setting up sen0466...");
-    // }
+    void Sen0466Sensor::setup() {
+      ESP_LOGCONFIG(TAG, "Setting up sen0466...");
+      // Sensor may power up in INITIATIVE mode; set PASSIVITY so it responds to our read requests
+      this->set_timeout(500, [this]() {
+        if (this->set_acquire_mode(0x04)) {  // 0x04 = PASSIVITY (host polls)
+          ESP_LOGI(TAG, "Acquire mode set to PASSIVITY");
+        } else {
+          ESP_LOGW(TAG, "Change acquire mode failed (sensor may already be in passivity)");
+        }
+      });
+    }
+
+    bool Sen0466Sensor::set_acquire_mode(uint8_t mode) {
+      uint8_t protocol_data[6] = {0};
+      protocol_data[0] = CMD_CHANGE_GET_METHOD;
+      protocol_data[1] = mode;
+      sProtocol_t writeData = pack_output_buffer(protocol_data, sizeof(protocol_data));
+      if (!this->write_bytes(CMD_I2C_REGISTER, (uint8_t*)&writeData, sizeof(writeData)))
+        return false;
+      delay(25);
+      uint8_t result[9] = {0};
+      if (!this->read_bytes(CMD_I2C_REGISTER, result, 9))
+        return false;
+      return (result[2] == 1);
+    }
 
     void Sen0466Sensor::update() {
       ESP_LOGV(TAG, "update start");
@@ -51,21 +73,31 @@ namespace esphome {
     void Sen0466Sensor::call_sensor(uint8_t command, uint8_t* result)
     {
       uint8_t protocol_data[6] = {0};
-
       protocol_data[0] = command;
-
       sProtocol_t writeData = pack_output_buffer(protocol_data, sizeof(protocol_data));
       ESP_LOGD(TAG, "call_sensor setup output buffer");
 
-      bool ret = this->write_bytes(CMD_I2C_REGISTER, (uint8_t*)&writeData, sizeof(writeData));
-      ESP_LOGD(TAG, "call_sensor send command %d", ret);
+      const int max_tries = 3;
+      const int delay_ms = 25;
+      bool read_ok = false;
 
-      delay(10);
+      for (int try_ = 0; try_ < max_tries && !read_ok; try_++) {
+        if (try_ > 0) {
+          delay(20);
+        }
+        if (!this->write_bytes(CMD_I2C_REGISTER, (uint8_t*)&writeData, sizeof(writeData))) {
+          ESP_LOGW(TAG, "call_sensor write failed (try %d)", try_ + 1);
+          continue;
+        }
+        delay(delay_ms);
+        read_ok = this->read_bytes(CMD_I2C_REGISTER, result, (uint8_t) 9);
+        if (!read_ok) {
+          ESP_LOGW(TAG, "call_sensor read failed (try %d)", try_ + 1);
+        }
+      }
+      ESP_LOGD(TAG, "call_sensor send/read: %s", read_ok ? "ok" : "fail");
 
-      ret = this->read_bytes(CMD_I2C_REGISTER, result, (uint8_t) 9);
-      ESP_LOGD(TAG, "call_sensor read_bytes: %d", ret);
-
-      ESP_LOGV(TAG, "call_sensor result: %02x %02x %02x %02x %02x %02x %02x %02x",
+      ESP_LOGV(TAG, "call_sensor result: %02x %02x %02x %02x %02x %02x %02x %02x %02x",
         result[0], result[1], result[2], result[3], result[4], result[5],
         result[6], result[7], result[8]);
     }
