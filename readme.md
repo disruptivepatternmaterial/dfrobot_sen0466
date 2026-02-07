@@ -27,6 +27,8 @@ sensor:
 	  # .. other settings from sensor apply
     address: 0x74
 	  # Default address, see table below
+    skip_checksum: false
+      # Set true if your device (e.g. at 0x36) uses a different checksum; responses are still parsed and invalid ADC values yield NAN.
 ```
 
 Address dip switches (from wiki https://wiki.dfrobot.com/SKU_SEN0465toSEN0476_Gravity_Gas_Sensor_Calibrated_I2C_UART)
@@ -40,6 +42,8 @@ Address dip switches (from wiki https://wiki.dfrobot.com/SKU_SEN0465toSEN0476_Gr
 Ensure SEL dip switch set to 0
 
 **Troubleshooting "write failed" / temp_ADC 0**: Check the I2C bus scan in the ESPHome boot log. The CO sensor must appear at the address you set (default 0x74). If you see a device at **0x36** but not 0x74, try `address: 0x36` in your config. Some boards or DIP settings use different addresses.
+
+**Troubleshooting "checksum doesn't match" at 0x36**: If the device at 0x36 responds but checksum fails every time, it may use a different checksum. Add `skip_checksum: true` so the component still parses the response. Invalid temperature ADC (0 or ≥1023) will still yield NAN; if the frame format differs, readings may remain NAN or incorrect until the device sends valid data.
 
 ## Changelog
 

@@ -34,6 +34,7 @@ TemperatureOffsetClassId = sen0466_sensor_ns.class_(
     "temperature_offset", number.Number)
 
 CONF_CARBON_MONOXIDE = "carbon_monoxide"
+CONF_SKIP_CHECKSUM = "skip_checksum"
 CONF_TEMPERATURE_OFFSET = "temperature_offset"
 
 CONFIG_SCHEMA = (
@@ -53,6 +54,7 @@ CONFIG_SCHEMA = (
                 state_class=STATE_CLASS_MEASUREMENT,
                 icon=ICON_CHEMICAL_WEAPON,
             ),
+            cv.Optional(CONF_SKIP_CHECKSUM, default=False): cv.boolean,
             cv.Optional(CONF_TEMPERATURE_OFFSET): cv.maybe_simple_value(
                 number.number_schema(TemperatureOffsetClassId).extend(
                     {
@@ -77,6 +79,7 @@ async def to_code(config):
     main_sensor_pvariable = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(main_sensor_pvariable, config)
     await i2c.register_i2c_device(main_sensor_pvariable, config)
+    cg.add(main_sensor_pvariable.set_skip_checksum(config.get(CONF_SKIP_CHECKSUM, False)))
 
     if temperature_config := config.get(CONF_TEMPERATURE):
         sens = await sensor.new_sensor(temperature_config)
