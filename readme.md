@@ -29,6 +29,8 @@ sensor:
 	  # Default address, see table below
     skip_checksum: false
       # Set true if your device (e.g. at 0x36) uses a different checksum; responses are still parsed and invalid ADC values yield NAN.
+    warm_up_seconds: 0
+      # Optional. Gas sensors often need 1–5+ minutes to stabilize after power-on; during this time NAN is published. 0 = no warm-up delay.
 ```
 
 Address dip switches (from wiki https://wiki.dfrobot.com/SKU_SEN0465toSEN0476_Gravity_Gas_Sensor_Calibrated_I2C_UART)
