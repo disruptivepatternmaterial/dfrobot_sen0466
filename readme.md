@@ -45,7 +45,9 @@ Ensure SEL dip switch set to 0
 
 **Troubleshooting "write failed" / temp_ADC 0**: Check the I2C bus scan in the ESPHome boot log. The CO sensor must appear at the address you set (default 0x74). If you see a device at **0x36** but not 0x74, try `address: 0x36` in your config. Some boards or DIP settings use different addresses.
 
-**Troubleshooting "checksum doesn't match" at 0x36**: If the device at 0x36 responds but checksum fails every time, it may use a different checksum. Add `skip_checksum: true` so the component still parses the response. Invalid temperature ADC (0 or ≥1023) will still yield NAN; if the frame format differs, readings may remain NAN or incorrect until the device sends valid data.
+**Troubleshooting "checksum doesn't match" at 0x36**: If the device at 0x36 responds but checksum fails every time, it may use a different checksum. Add `skip_checksum: true` so the component still parses the response. Invalid temperature ADC (0 or ≥1023) will still yield NAN; if the frame format differs, readings may remain NAN or incorrect until the device sends valid data. Note: DFRobot's official I2C address table for this family is 0x74–0x77 (DIP A0/A1); 0x36 is not in that table, so the module at 0x36 may be a different hardware variant or clone with different firmware/protocol.
+
+**Device settings applied automatically**: On boot, the component sends **PASSIVITY** (0x78 0x04) after 500 ms so the sensor responds to host polls instead of pushing data. If you get repeated invalid reads, the component will re-send PASSIVITY every 5 failed cycles. For cold start, consider `warm_up_seconds: 60` (or 120–300) so the sensor can stabilize before using readings.
 
 ## Changelog
 
