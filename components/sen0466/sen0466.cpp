@@ -1,6 +1,7 @@
 #include "sen0466.h"
 #include "esphome/core/log.h"
 #include "esphome/core/hal.h"
+#include <cmath>
 
 namespace esphome {
   namespace sen0466_sensor {
@@ -14,6 +15,13 @@ namespace esphome {
     void Sen0466Sensor::update() {
       ESP_LOGV(TAG, "update start");
       float temperature = read_temperature_C();
+
+      if (std::isnan(temperature)) {
+        temperature_sensor_->publish_state(NAN);
+        carbon_monoxide_sensor_->publish_state(NAN);
+        ESP_LOGV(TAG, "update end");
+        return;
+      }
 
       ESP_LOGD(TAG, "update temperature: %f", temperature);
 
@@ -52,6 +60,8 @@ namespace esphome {
       bool ret = this->write_bytes(CMD_I2C_REGISTER, (uint8_t*)&writeData, sizeof(writeData));
       ESP_LOGD(TAG, "call_sensor send command %d", ret);
 
+      delay(10);
+
       ret = this->read_bytes(CMD_I2C_REGISTER, result, (uint8_t) 9);
       ESP_LOGD(TAG, "call_sensor read_bytes: %d", ret);
 
@@ -69,13 +79,19 @@ namespace esphome {
       if (result[8] != calculate_data_checksum(result, 8))
       {
         ESP_LOGE(TAG, "read_temperature_C checksum doesn't match!");
-        return -100.0;
+        return NAN;
       }
 
       ESP_LOGD(TAG, "read_temperature_C calculate actual");
       uint16_t temp_ADC = (result[2] << 8) + result[3];
 
       ESP_LOGD(TAG, "read_temperature_C temp_ADC: %u", temp_ADC);
+
+      if (temp_ADC == 0 || temp_ADC >= 1023)
+      {
+        ESP_LOGW(TAG, "read_temperature_C invalid temp_ADC %u", temp_ADC);
+        return NAN;
+      }
 
       float vPd3 = 3*(float)temp_ADC/1024;
       ESP_LOGD(TAG, "read_temperature_C vPd3: %f", vPd3);

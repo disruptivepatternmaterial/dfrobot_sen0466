@@ -38,3 +38,10 @@ Address dip switches (from wiki https://wiki.dfrobot.com/SKU_SEN0465toSEN0476_Gr
 | 0x77 | 1 | 1 |
 
 Ensure SEL dip switch set to 0
+
+## Changelog
+
+### Unreleased
+- **Temperature read fix**: Add 10 ms delay between I2C write and read (matches DFRobot library) so the sensor has time to respond; previously the MCU could read before the sensor filled the response, yielding zeros and -273.15°C.
+- **Invalid reading handling**: Validate raw temperature ADC (reject 0 and ≥1023) and return NAN instead of running thermistor math on invalid data. On checksum failure, return NAN instead of -100.0.
+- **Update path**: When temperature is invalid (NAN), publish NAN for both temperature and CO sensors for that cycle instead of -273.15°C or -100, and skip gas read so invalid temp is not used for compensation.
