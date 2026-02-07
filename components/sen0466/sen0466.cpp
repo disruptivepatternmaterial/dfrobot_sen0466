@@ -17,6 +17,15 @@ namespace esphome {
         } else {
           ESP_LOGW(TAG, "Change acquire mode failed (sensor may already be in passivity)");
         }
+        if (warm_up_seconds_ == 0) {
+          warm_up_done_ = true;
+        } else {
+          ESP_LOGI(TAG, "Warm-up: %lu s before first readings", (unsigned long) warm_up_seconds_);
+          this->set_timeout(warm_up_seconds_ * 1000, [this]() {
+            warm_up_done_ = true;
+            ESP_LOGI(TAG, "Warm-up complete");
+          });
+        }
       });
     }
 
@@ -36,15 +45,29 @@ namespace esphome {
 
     void Sen0466Sensor::update() {
       ESP_LOGV(TAG, "update start");
+      if (!warm_up_done_) {
+        temperature_sensor_->publish_state(NAN);
+        carbon_monoxide_sensor_->publish_state(NAN);
+        return;
+      }
+
       float temperature = read_temperature_C();
 
       if (std::isnan(temperature)) {
+        consecutive_invalid_count_++;
+        if (consecutive_invalid_count_ >= 5) {
+          consecutive_invalid_count_ = 0;
+          if (this->set_acquire_mode(0x04)) {
+            ESP_LOGI(TAG, "Re-sent PASSIVITY after repeated invalid reads");
+          }
+        }
         temperature_sensor_->publish_state(NAN);
         carbon_monoxide_sensor_->publish_state(NAN);
         ESP_LOGV(TAG, "update end");
         return;
       }
 
+      consecutive_invalid_count_ = 0;
       ESP_LOGD(TAG, "update temperature: %f", temperature);
 
       float offset = temperature_offset_;
@@ -66,6 +89,9 @@ namespace esphome {
       LOG_I2C_DEVICE(this);
       if (skip_checksum_) {
         ESP_LOGCONFIG(TAG, "  Skip checksum: YES (use if device at 0x36 uses different checksum)");
+      }
+      if (warm_up_seconds_ > 0) {
+        ESP_LOGCONFIG(TAG, "  Warm-up: %lu s", (unsigned long) warm_up_seconds_);
       }
       if (this->is_failed()) {
         ESP_LOGE(TAG, "Communication with sen0466 failed!");

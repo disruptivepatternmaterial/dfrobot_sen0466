@@ -28,6 +28,7 @@ namespace esphome {
         void set_carbon_monoxide_sensor(sensor::Sensor *carbon_monoxide_sensor) { carbon_monoxide_sensor_ = carbon_monoxide_sensor;}
         void set_temperature_offset(float temperature_offset) { temperature_offset_ = temperature_offset; }
         void set_skip_checksum(bool skip) { skip_checksum_ = skip; }
+        void set_warm_up_seconds(uint32_t s) { warm_up_seconds_ = s; }
 
       protected:
         float read_temperature_C();
@@ -41,6 +42,9 @@ namespace esphome {
         sensor::Sensor *carbon_monoxide_sensor_{nullptr};
         float temperature_offset_;
         bool skip_checksum_{false};
+        uint32_t warm_up_seconds_{0};
+        bool warm_up_done_{false};
+        uint8_t consecutive_invalid_count_{0};
 
         // not a special value, just a random 0 hanging out in read/write commands
         // that took a bit to understand meaning
