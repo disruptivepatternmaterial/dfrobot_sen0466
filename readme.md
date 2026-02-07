@@ -39,6 +39,8 @@ Address dip switches (from wiki https://wiki.dfrobot.com/SKU_SEN0465toSEN0476_Gr
 
 Ensure SEL dip switch set to 0
 
+**Troubleshooting "write failed" / temp_ADC 0**: Check the I2C bus scan in the ESPHome boot log. The CO sensor must appear at the address you set (default 0x74). If you see a device at **0x36** but not 0x74, try `address: 0x36` in your config. Some boards or DIP settings use different addresses.
+
 ## Changelog
 
 ### Unreleased

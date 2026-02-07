@@ -108,9 +108,14 @@ namespace esphome {
       uint8_t result[9] = {0};
       call_sensor(CMD_GET_TEMP, (uint8_t*)&result);
 
-      if (result[8] != calculate_data_checksum(result, 8))
+      uint8_t expected_csum = calculate_data_checksum(result, 8);
+      if (result[8] != expected_csum)
       {
-        ESP_LOGE(TAG, "read_temperature_C checksum doesn't match!");
+        ESP_LOGE(TAG, "read_temperature_C checksum doesn't match! got 0x%02X expected 0x%02X",
+                 result[8], expected_csum);
+        ESP_LOGD(TAG, "read_temperature_C raw: %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+                 result[0], result[1], result[2], result[3], result[4], result[5],
+                 result[6], result[7], result[8]);
         return NAN;
       }
 
@@ -149,9 +154,14 @@ namespace esphome {
       ESP_LOGD(TAG, "read_gas_ppm got data from sensor, correct for temperature");
 
       // these calculations from DFRobot sources
-      if (calculate_data_checksum(result, 8) != result[8])
+      uint8_t expected_csum = calculate_data_checksum(result, 8);
+      if (expected_csum != result[8])
       {
-        ESP_LOGE(TAG, "read_gas_ppm checksum invalid");
+        ESP_LOGE(TAG, "read_gas_ppm checksum invalid (got 0x%02X expected 0x%02X)",
+                 result[8], expected_csum);
+        ESP_LOGD(TAG, "read_gas_ppm raw: %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+                 result[0], result[1], result[2], result[3], result[4], result[5],
+                 result[6], result[7], result[8]);
         return -2.0;
       }
 
