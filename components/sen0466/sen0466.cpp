@@ -43,6 +43,16 @@ namespace esphome {
       return (result[2] == 1);
     }
 
+    void Sen0466Sensor::reinit_sensor_() {
+      ESP_LOGI(TAG, "Re-initialising sensor (PASSIVITY mode)");
+      if (this->set_acquire_mode(0x04)) {
+        ESP_LOGI(TAG, "PASSIVITY mode re-set OK");
+      } else {
+        ESP_LOGW(TAG, "PASSIVITY mode re-set failed");
+      }
+      stale_co_count_ = 0;
+    }
+
     void Sen0466Sensor::update() {
       ESP_LOGV(TAG, "update start");
       if (!warm_up_done_) {
@@ -51,15 +61,19 @@ namespace esphome {
         return;
       }
 
+      update_count_++;
+      if (reinit_interval_ > 0 && update_count_ >= reinit_interval_) {
+        update_count_ = 0;
+        reinit_sensor_();
+      }
+
       float temperature = read_temperature_C();
 
       if (std::isnan(temperature)) {
         consecutive_invalid_count_++;
         if (consecutive_invalid_count_ >= 5) {
           consecutive_invalid_count_ = 0;
-          if (this->set_acquire_mode(0x04)) {
-            ESP_LOGI(TAG, "Re-sent PASSIVITY after repeated invalid reads");
-          }
+          reinit_sensor_();
         }
         temperature_sensor_->publish_state(NAN);
         carbon_monoxide_sensor_->publish_state(NAN);
@@ -68,6 +82,19 @@ namespace esphome {
       }
 
       consecutive_invalid_count_ = 0;
+
+      if (reference_temp_sensor_ != nullptr && !std::isnan(reference_temp_sensor_->state)) {
+        float delta = std::abs(temperature - reference_temp_sensor_->state);
+        if (delta > temp_divergence_limit_) {
+          ESP_LOGW(TAG, "Temperature divergence %.1f°C (sen0466=%.1f ref=%.1f) exceeds limit %.1f — re-init",
+                   delta, temperature, reference_temp_sensor_->state, temp_divergence_limit_);
+          reinit_sensor_();
+          temperature_sensor_->publish_state(NAN);
+          carbon_monoxide_sensor_->publish_state(NAN);
+          return;
+        }
+      }
+
       ESP_LOGD(TAG, "update temperature: %f", temperature);
 
       float offset = temperature_offset_;
@@ -79,6 +106,27 @@ namespace esphome {
       temperature_sensor_->publish_state(calc_temperature);
 
       float gas = read_gas_ppm(calc_temperature);
+
+      if (stale_threshold_ > 0 && !std::isnan(gas) && gas > 0.0f) {
+        if (!std::isnan(last_co_value_) && std::abs(gas - last_co_value_) < 0.1f) {
+          stale_co_count_++;
+          if (stale_co_count_ >= stale_threshold_) {
+            ESP_LOGW(TAG, "CO stuck at %.1f ppm for %u consecutive reads — re-init",
+                     gas, stale_co_count_);
+            reinit_sensor_();
+            carbon_monoxide_sensor_->publish_state(NAN);
+            last_co_value_ = NAN;
+            return;
+          }
+        } else {
+          stale_co_count_ = 0;
+        }
+        last_co_value_ = gas;
+      } else {
+        stale_co_count_ = 0;
+        last_co_value_ = gas;
+      }
+
       carbon_monoxide_sensor_->publish_state(gas);
 
       ESP_LOGV(TAG, "update end");
@@ -93,6 +141,10 @@ namespace esphome {
       if (warm_up_seconds_ > 0) {
         ESP_LOGCONFIG(TAG, "  Warm-up: %lu s", (unsigned long) warm_up_seconds_);
       }
+      ESP_LOGCONFIG(TAG, "  Reinit interval: %u cycles", reinit_interval_);
+      ESP_LOGCONFIG(TAG, "  Stale threshold: %u reads", stale_threshold_);
+      ESP_LOGCONFIG(TAG, "  Temp divergence limit: %.1f °C", temp_divergence_limit_);
+      ESP_LOGCONFIG(TAG, "  Reference temp sensor: %s", reference_temp_sensor_ ? "configured" : "none");
       if (this->is_failed()) {
         ESP_LOGE(TAG, "Communication with sen0466 failed!");
       }

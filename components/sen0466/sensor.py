@@ -37,6 +37,10 @@ CONF_CARBON_MONOXIDE = "carbon_monoxide"
 CONF_SKIP_CHECKSUM = "skip_checksum"
 CONF_TEMPERATURE_OFFSET = "temperature_offset"
 CONF_WARM_UP_SECONDS = "warm_up_seconds"
+CONF_REINIT_INTERVAL = "reinit_interval"
+CONF_STALE_THRESHOLD = "stale_threshold"
+CONF_REFERENCE_TEMPERATURE = "reference_temperature"
+CONF_TEMP_DIVERGENCE_LIMIT = "temp_divergence_limit"
 
 CONFIG_SCHEMA = (
     cv.Schema(
@@ -57,6 +61,10 @@ CONFIG_SCHEMA = (
             ),
             cv.Optional(CONF_SKIP_CHECKSUM, default=False): cv.boolean,
             cv.Optional(CONF_WARM_UP_SECONDS, default=0): cv.int_range(min=0, max=86400),
+            cv.Optional(CONF_REINIT_INTERVAL, default=30): cv.int_range(min=0, max=65535),
+            cv.Optional(CONF_STALE_THRESHOLD, default=10): cv.int_range(min=0, max=255),
+            cv.Optional(CONF_REFERENCE_TEMPERATURE): cv.use_id(sensor.Sensor),
+            cv.Optional(CONF_TEMP_DIVERGENCE_LIMIT, default=8.0): cv.float_range(min=1.0, max=30.0),
             cv.Optional(CONF_TEMPERATURE_OFFSET): cv.maybe_simple_value(
                 number.number_schema(TemperatureOffsetClassId).extend(
                     {
@@ -83,6 +91,9 @@ async def to_code(config):
     await i2c.register_i2c_device(main_sensor_pvariable, config)
     cg.add(main_sensor_pvariable.set_skip_checksum(config.get(CONF_SKIP_CHECKSUM, False)))
     cg.add(main_sensor_pvariable.set_warm_up_seconds(config.get(CONF_WARM_UP_SECONDS, 0)))
+    cg.add(main_sensor_pvariable.set_reinit_interval(config.get(CONF_REINIT_INTERVAL, 30)))
+    cg.add(main_sensor_pvariable.set_stale_threshold(config.get(CONF_STALE_THRESHOLD, 10)))
+    cg.add(main_sensor_pvariable.set_temp_divergence_limit(config.get(CONF_TEMP_DIVERGENCE_LIMIT, 8.0)))
 
     if temperature_config := config.get(CONF_TEMPERATURE):
         sens = await sensor.new_sensor(temperature_config)
@@ -91,7 +102,11 @@ async def to_code(config):
     if carbon_monoxide_config := config.get(CONF_CARBON_MONOXIDE):
         sens = await sensor.new_sensor(carbon_monoxide_config)
         cg.add(main_sensor_pvariable.set_carbon_monoxide_sensor(sens))
-    
+
+    if ref_temp_id := config.get(CONF_REFERENCE_TEMPERATURE):
+        ref_sens = await cg.get_variable(ref_temp_id)
+        cg.add(main_sensor_pvariable.set_reference_temperature_sensor(ref_sens))
+
     if temperature_offset_config := config.get(CONF_TEMPERATURE_OFFSET):
         sens = await number.new_number(temperature_offset_config, min_value=-10, max_value=10, step=0.1, )
         await cg.register_parented(sens, main_sensor_pvariable)

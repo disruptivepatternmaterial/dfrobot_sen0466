@@ -29,6 +29,10 @@ namespace esphome {
         void set_temperature_offset(float temperature_offset) { temperature_offset_ = temperature_offset; }
         void set_skip_checksum(bool skip) { skip_checksum_ = skip; }
         void set_warm_up_seconds(uint32_t s) { warm_up_seconds_ = s; }
+        void set_reinit_interval(uint16_t cycles) { reinit_interval_ = cycles; }
+        void set_stale_threshold(uint8_t count) { stale_threshold_ = count; }
+        void set_reference_temperature_sensor(sensor::Sensor *s) { reference_temp_sensor_ = s; }
+        void set_temp_divergence_limit(float limit) { temp_divergence_limit_ = limit; }
 
       protected:
         float read_temperature_C();
@@ -37,14 +41,25 @@ namespace esphome {
         uint8_t calculate_data_checksum(uint8_t* i,uint8_t ln);
         void call_sensor(uint8_t command, uint8_t* result);
         bool set_acquire_mode(uint8_t mode);
+        void reinit_sensor_();
 
         sensor::Sensor *temperature_sensor_{nullptr};
         sensor::Sensor *carbon_monoxide_sensor_{nullptr};
+        sensor::Sensor *reference_temp_sensor_{nullptr};
         float temperature_offset_;
         bool skip_checksum_{false};
         uint32_t warm_up_seconds_{0};
         bool warm_up_done_{false};
         uint8_t consecutive_invalid_count_{0};
+
+        uint16_t reinit_interval_{30};
+        uint16_t update_count_{0};
+
+        uint8_t stale_threshold_{10};
+        float last_co_value_{NAN};
+        uint8_t stale_co_count_{0};
+
+        float temp_divergence_limit_{8.0};
 
         // not a special value, just a random 0 hanging out in read/write commands
         // that took a bit to understand meaning
