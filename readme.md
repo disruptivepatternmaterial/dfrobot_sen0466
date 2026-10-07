@@ -52,7 +52,7 @@ Ensure SEL dip switch set to 0
 ## Changelog
 
 ### Unreleased
-- **Reject frames that are not a CO reading**: Under bus errors the module can answer a gas request with its previous temperature frame. That frame passes the checksum, so its ~500-count thermistor ADC was published as ~480 ppm CO. Gas reads now require gas-type byte 0x04 (CO) and publish NAN otherwise. A read that fails on every retry also publishes NAN instead of parsing the stale buffer.
+- **Reject frames that are not a CO reading**: After bus errors the module answers some gas requests with checksum-valid frames that carry no gas type, e.g. `FF 86 01 00 00 00 00 00 79`. Its 0x0100 was parsed as 256 counts and published as ~247 ppm CO (an all-zero buffer also passes the checksum). Gas reads now require gas-type byte 0x04 (CO) and publish NAN otherwise. A read that fails on every retry also publishes NAN instead of parsing the stale buffer.
 - **Setup: set acquire mode to PASSIVITY**: After power-up the sensor may be in INITIATIVE mode (it pushes data). We send Change Get Method (0x78) with mode 0x04 (PASSIVITY) once in `setup()` so it responds to GET_TEMP / GET_GAS requests. Required for reliable I2C readback.
 - **Temperature read fix**: Add 10 ms delay between I2C write and read (matches DFRobot library) so the sensor has time to respond; previously the MCU could read before the sensor filled the response, yielding zeros and -273.15°C.
 - **Invalid reading handling**: Validate raw temperature ADC (reject 0 and ≥1023) and return NAN instead of running thermistor math on invalid data. On checksum failure, return NAN instead of -100.0.

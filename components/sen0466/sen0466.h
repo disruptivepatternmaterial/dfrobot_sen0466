@@ -73,8 +73,9 @@ namespace esphome {
         static const uint8_t CMD_SENSOR_VOLTAGE         = 0X91;
         static const uint8_t CMD_CHANGE_IIC_ADDR        = 0X92;
 
-        // Byte 4 of a gas-concentration response (DFRobot queryGasType); the module can answer
-        // CMD_GET_GAS_CONCENTRATION with its previous temperature frame, which has a valid checksum.
+        // Byte 4 of a gas-concentration response (DFRobot queryGasType). After bus errors the module
+        // answers with checksum-valid frames such as FF 86 01 00 00 00 00 00 79 (gas type 0), whose
+        // 0x0100 reads as 256 counts (~247 ppm after compensation) if not rejected.
         static const uint8_t GAS_TYPE_CO                = 0x04;
     };
 
