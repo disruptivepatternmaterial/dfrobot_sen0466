@@ -39,7 +39,7 @@ namespace esphome {
         float read_gas_ppm(float temperature);
         sProtocol_t pack_output_buffer(uint8_t*, uint8_t);
         uint8_t calculate_data_checksum(uint8_t* i,uint8_t ln);
-        void call_sensor(uint8_t command, uint8_t* result);
+        bool call_sensor(uint8_t command, uint8_t* result);
         bool set_acquire_mode(uint8_t mode);
         void reinit_sensor_();
 
@@ -72,6 +72,10 @@ namespace esphome {
         static const uint8_t CMD_IIC_AVAILABLE          = 0X90;
         static const uint8_t CMD_SENSOR_VOLTAGE         = 0X91;
         static const uint8_t CMD_CHANGE_IIC_ADDR        = 0X92;
+
+        // Byte 4 of a gas-concentration response (DFRobot queryGasType); the module can answer
+        // CMD_GET_GAS_CONCENTRATION with its previous temperature frame, which has a valid checksum.
+        static const uint8_t GAS_TYPE_CO                = 0x04;
     };
 
   }  // namespace sen0466_sensor

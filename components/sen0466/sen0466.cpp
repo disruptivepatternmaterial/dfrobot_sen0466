@@ -151,7 +151,7 @@ namespace esphome {
       LOG_UPDATE_INTERVAL(this);
     }
 
-    void Sen0466Sensor::call_sensor(uint8_t command, uint8_t* result)
+    bool Sen0466Sensor::call_sensor(uint8_t command, uint8_t* result)
     {
       uint8_t protocol_data[6] = {0};
       protocol_data[0] = command;
@@ -181,13 +181,17 @@ namespace esphome {
       ESP_LOGV(TAG, "call_sensor result: %02x %02x %02x %02x %02x %02x %02x %02x %02x",
         result[0], result[1], result[2], result[3], result[4], result[5],
         result[6], result[7], result[8]);
+      return read_ok;
     }
 
     float Sen0466Sensor::read_temperature_C(void)
     {
       ESP_LOGV(TAG, "read_temperature_C start");
       uint8_t result[9] = {0};
-      call_sensor(CMD_GET_TEMP, (uint8_t*)&result);
+      if (!call_sensor(CMD_GET_TEMP, (uint8_t*)&result)) {
+        ESP_LOGW(TAG, "read_temperature_C: no response after retries");
+        return NAN;
+      }
 
       uint8_t expected_csum = calculate_data_checksum(result, 8);
       if (result[8] != expected_csum)
@@ -237,7 +241,10 @@ namespace esphome {
       ESP_LOGD(TAG, "read_gas_ppm read data from sensor");
       uint8_t result[9] = {0xff};
 
-      call_sensor(CMD_GET_GAS_CONCENTRATION, result);
+      if (!call_sensor(CMD_GET_GAS_CONCENTRATION, result)) {
+        ESP_LOGW(TAG, "read_gas_ppm: no response after retries");
+        return NAN;
+      }
 
       ESP_LOGD(TAG, "read_gas_ppm got data from sensor, correct for temperature");
 
@@ -255,6 +262,13 @@ namespace esphome {
         }
         ESP_LOGW(TAG, "read_gas_ppm checksum mismatch (got 0x%02X expected 0x%02X), parsing anyway (skip_checksum)",
                  result[8], expected_csum);
+      }
+
+      if (result[4] != GAS_TYPE_CO) {
+        ESP_LOGW(TAG, "read_gas_ppm: not a CO frame (gas type 0x%02X), discarding raw: %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+                 result[4], result[0], result[1], result[2], result[3], result[4], result[5],
+                 result[6], result[7], result[8]);
+        return NAN;
       }
 
       float concentration = ((result[2]<<8) + result[3])*1.0;
